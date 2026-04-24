@@ -1,81 +1,82 @@
-import os
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-from imblearn.over_sampling import SMOTE
+
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-os.makedirs("outputs/plots", exist_ok=True)
+# Load dataset
+df = pd.read_csv("preprocessed data.csv")   # replace with your file name
 
-# ============================================================
-# Load Data
-# ============================================================
-
-df = pd.read_csv("outputs/final_data.csv")
-
+# Features / Target
 X = df.drop("target", axis=1)
-Y = df["target"]
+y = df["target"]
 
-# ============================================================
-# Train / Test Split
-# ============================================================
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    stratify=y,
+    random_state=42
+)
 
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42, stratify=Y)
+# Parameter tuning
+params = {
+    'n_estimators': [200, 500],
+    'max_depth': [5, 8, 10, None],
+    'min_samples_split': [2, 5],
+    'min_samples_leaf': [1, 2],
+    'max_features': ['sqrt', 'log2'],
+    'class_weight': [None, 'balanced']
+}
 
-# ============================================================
-# SMOTE - Balance Training Data
-# ============================================================
+grid = GridSearchCV(
+    RandomForestClassifier(random_state=42),
+    param_grid=params,
+    cv=5,
+    scoring='accuracy',
+    n_jobs=-1
+)
 
-sm = SMOTE(random_state=42)
-X_train_res, Y_train_res = sm.fit_resample(X_train, Y_train)
+# Train best model
+grid.fit(X_train, y_train)
 
-print("After SMOTE:")
-print(Y_train_res.value_counts())
-print("---------------------------------------------------")
+best_rf = grid.best_estimator_
 
-# ============================================================
-# Random Forest
-# ============================================================
+print("Best Parameters:")
+print(grid.best_params_)
 
-model = RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42)
-model.fit(X_train_res, Y_train_res)
+# Cross Validation Score
+cv_score = cross_val_score(best_rf, X, y, cv=5).mean()
+print("\nCross Validation Accuracy:", round(cv_score * 100, 2), "%")
 
-pred = model.predict(X_test)
+# Test Prediction
+y_pred = best_rf.predict(X_test)
 
-print("\nRandom Forest")
-print(classification_report(Y_test, pred))
+# Final Accuracy
+acc = accuracy_score(y_test, y_pred)
+print("Test Accuracy:", round(acc * 100, 2), "%")
 
-accuracy = accuracy_score(Y_test, pred)
-error = (1 - accuracy) * 100
-print(f"Random Forest Error %: {error:.2f}%")
-print("---------------------------------------------------")
+# Report
+print("\nClassification Report:\n")
+print(classification_report(y_test, y_pred))
 
 # Confusion Matrix
-plt.figure(figsize=(6, 5))
-sns.heatmap(confusion_matrix(Y_test, pred), annot=True, fmt="d", cmap="Greens")
-plt.title("Random Forest - Confusion Matrix")
-plt.tight_layout()
-plt.savefig("outputs/plots/cm_random_forest.png", dpi=150)
-plt.close()
+cm = confusion_matrix(y_test, y_pred)
 
-# Feature Importance Plot
-importances = model.feature_importances_
-indices = np.argsort(importances)[::-1]
-feature_names = X.columns
+plt.figure(figsize=(6,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
 
-plt.figure(figsize=(10, 6))
-plt.barh(feature_names[indices][:15], importances[indices][:15])
-plt.xlabel("Feature Importance")
-plt.title("Top Features Affecting Heart Disease (Random Forest)")
-plt.gca().invert_yaxis()
-plt.tight_layout()
-plt.savefig("outputs/plots/rf_feature_importance.png", dpi=150)
-plt.close()
+# Feature Importance
+importance = pd.Series(best_rf.feature_importances_, index=X.columns)
+importance = importance.sort_values(ascending=False)
 
-# Save predictions for comparison
-pd.DataFrame({"actual": Y_test.values, "predicted": pred}).to_csv(
-    "outputs/pred_random_forest.csv", index=False
-)
+plt.figure(figsize=(10,6))
+sns.barplot(x=importance.values, y=importance.index)
+plt.title("Feature Importance")
+plt.show()
