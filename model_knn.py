@@ -77,3 +77,7 @@ print(cm)
 print("\nConfusion Matrix (labeled):")
 print("TN =", cm[0][0], "| FP =", cm[0][1])
 print("FN =", cm[1][0], "| TP =", cm[1][1])
+
+pd.DataFrame({"actual": y_test.values, "predicted": y_final_pred}).to_csv(
+    "outputs/pred_knn.csv", index=False
+)
