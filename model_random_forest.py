@@ -14,7 +14,7 @@ os.makedirs("outputs/plots", exist_ok=True)
 # Load Data
 # ============================================================
 
-df = pd.read_csv("outputs/encoded_data.csv")
+df = pd.read_csv("outputs/final_data.csv")
 
 X = df.drop("target", axis=1)
 Y = df["target"]

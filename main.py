@@ -23,6 +23,4 @@ for script in scripts:
 
 print("\n" + "="*55)
 print("  All scripts finished successfully!")
-print("  Outputs saved to: outputs/")
-print("  Plots saved to:   outputs/plots/")
 print("="*55)

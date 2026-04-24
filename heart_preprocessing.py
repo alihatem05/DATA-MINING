@@ -2,182 +2,107 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import StandardScaler
 
+INPUT_PATH = "heart.csv"
+OUTPUT_PATH = "outputs/final_data.csv"
+PLOTS_DIR = "outputs/plots"
 CATEGORICAL_COLUMNS = ["sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal"]
 TARGET_COLUMN = "target"
 
-
-def load_data(path: str = "heart.csv") -> pd.DataFrame:
-    return pd.read_csv(path)
+os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-def describe_dataset(df: pd.DataFrame) -> dict:
-    categorical_columns = [col for col in CATEGORICAL_COLUMNS if col in df.columns]
-    numerical_columns = [
-        col for col in df.columns if col not in categorical_columns + [TARGET_COLUMN]
-    ]
 
-    print("\nCategorical columns:")
-    print(categorical_columns)
-    print("\nNumerical columns:")
-    print(numerical_columns)
-
-    print("\nFirst 5 rows:")
-    print(df.head())
-
-    print("\nDataset Info:")
-    print(df.info())
-
-    print("\nMissing values:")
-    print(df.isnull().sum())
-
-    print("\nStatistics:")
-    print(df.describe())
-
-    return {
-        "categorical_columns": categorical_columns,
-        "numerical_columns": numerical_columns,
-    }
+df = pd.read_csv(INPUT_PATH)
+print(f"Loaded {df.shape[0]} rows, {df.shape[1]} columns from '{INPUT_PATH}'")
 
 
-def clean_data(df: pd.DataFrame, categorical_columns: list[str]) -> pd.DataFrame:
-    cleaned = df.copy()
 
-    cleaned = cleaned.drop_duplicates().reset_index(drop=True)
-
-    numerical_columns = [
-        col for col in cleaned.columns if col not in categorical_columns + [TARGET_COLUMN]
-    ]
-
-    for col in numerical_columns:
-        if cleaned[col].isnull().any():
-            cleaned[col] = cleaned[col].fillna(cleaned[col].median())
-
-    for col in categorical_columns:
-        if cleaned[col].isnull().any():
-            cleaned[col] = cleaned[col].fillna(cleaned[col].mode().iloc[0])
-
-    if cleaned[TARGET_COLUMN].dtype != "int64":
-        cleaned[TARGET_COLUMN] = cleaned[TARGET_COLUMN].astype(int)
-
-    print("\nAfter cleaning:")
-    print(cleaned.isnull().sum())
-    print(f"Rows after dropping duplicates: {len(cleaned)}")
-
-    return cleaned
+# Describe 
+print("\n=== Dataset Summary ===")
+print(f"Shape: {df.shape}")
+print(f"\nMissing values:\n{df.isnull().sum()}")
+print(f"\nStatistics:\n{df.describe()}")
 
 
-def outlier_statistics(df: pd.DataFrame, numerical_columns: list[str]) -> dict:
-    quartiles = {}
 
-    for col in numerical_columns:
-        q1 = df[col].quantile(0.25)
-        q2 = df[col].quantile(0.50)
-        q3 = df[col].quantile(0.75)
-        iqr = q3 - q1
-
-        lower = q1 - 1.5 * iqr
-        upper = q3 + 1.5 * iqr
-        outliers_count = ((df[col] < lower) | (df[col] > upper)).sum()
-
-        quartiles[col] = {
-            "Q1": q1,
-            "Q2": q2,
-            "Q3": q3,
-            "IQR": iqr,
-            "Lower Bound": lower,
-            "Upper Bound": upper,
-            "Outliers Count": int(outliers_count),
-        }
-
-        print(f"===== {col} =====")
-        for key, value in quartiles[col].items():
-            print(f"{key}: {value}")
-        print()
-
-    return quartiles
+# Column types 
+categorical_cols = [c for c in CATEGORICAL_COLUMNS if c in df.columns]
+numerical_cols = [c for c in df.columns if c not in categorical_cols + [TARGET_COLUMN]]
 
 
-def cap_outliers(
-    df: pd.DataFrame, numerical_columns: list[str], quartiles: dict
-) -> pd.DataFrame:
-    capped = df.copy()
 
-    for col in numerical_columns:
-        if quartiles[col]["Outliers Count"] == 0:
-            continue
+# Clean 
+df = df.drop_duplicates().reset_index(drop=True)
 
-        lower = quartiles[col]["Lower Bound"]
-        upper = quartiles[col]["Upper Bound"]
-        capped[col] = capped[col].clip(lower=lower, upper=upper)
+for col in numerical_cols:
+    if df[col].isnull().any():
+        df[col] = df[col].fillna(df[col].median())
 
-    print("\nHead after capping:")
-    print(capped.head())
-    return capped
+for col in categorical_cols:
+    if df[col].isnull().any():
+        df[col] = df[col].fillna(df[col].mode().iloc[0])
 
+df[TARGET_COLUMN] = df[TARGET_COLUMN].astype(int)
 
-def plot_boxplots(df: pd.DataFrame, numerical_columns: list[str]) -> None:
-    os.makedirs("outputs/plots", exist_ok=True)
-    for col in numerical_columns:
-        plt.figure(figsize=(6, 4))
-        sns.boxplot(x=df[col])
-        plt.title(f"Boxplot of {col}")
-        plt.tight_layout()
-        plt.savefig(f"outputs/plots/boxplot_{col}.png", dpi=150)
-        plt.close()
+print(f"Rows after dropping duplicates: {len(df)}")
+print(f"Remaining nulls: {df.isnull().sum().sum()}")
 
 
-def plot_correlation_heatmap(df: pd.DataFrame) -> None:
-    os.makedirs("outputs/plots", exist_ok=True)
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(df.corr(), annot=True, cmap="coolwarm")
-    plt.title("Correlation Heatmap")
+
+# Cap outliers 
+for col in numerical_cols:
+    q1, q3 = df[col].quantile([0.25, 0.75])
+    iqr = q3 - q1
+    lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+    n_outliers = int(((df[col] < lower) | (df[col] > upper)).sum())
+
+    if n_outliers:
+        df[col] = df[col].clip(lower=lower, upper=upper)
+        print(f"{col:<12}  capped {n_outliers} outlier(s)")
+
+
+
+# Boxplots 
+for col in numerical_cols:
+    plt.figure(figsize=(6, 4))
+    sns.boxplot(x=df[col])
+    plt.title(f"Boxplot of {col}")
     plt.tight_layout()
-    plt.savefig("outputs/plots/correlation_heatmap.png", dpi=150)
+    plt.savefig(os.path.join(PLOTS_DIR, f"boxplot_{col}.png"), dpi=150)
     plt.close()
+print(f"Saved boxplots to {PLOTS_DIR}/")
 
 
-def encode_features(df: pd.DataFrame, categorical_columns: list[str]) -> pd.DataFrame:
-    return pd.get_dummies(df, columns=categorical_columns, drop_first=False)
+
+# Correlation heatmap 
+plt.figure(figsize=(12, 8))
+sns.heatmap(df.corr(numeric_only=True), annot=True, cmap="coolwarm")
+plt.title("Correlation Heatmap")
+plt.tight_layout()
+plt.savefig(os.path.join(PLOTS_DIR, "correlation_heatmap.png"), dpi=150)
+plt.close()
+print(f"Saved correlation heatmap to {PLOTS_DIR}/")
 
 
-def normalize_features(df: pd.DataFrame, numerical_columns: list[str]) -> pd.DataFrame:
-    normalized = df.copy()
-    scaler = MinMaxScaler()
-    normalized[numerical_columns] = scaler.fit_transform(normalized[numerical_columns])
-    return normalized
+
+# Encode & normalise 
+target = df[TARGET_COLUMN]
+features = df.drop(columns=[TARGET_COLUMN])
+
+# Save capped (non-normalized) data for analysis plots
+df.to_csv("outputs/processed_data.csv", index=False)
+print("Saved processed data to 'outputs/processed_data.csv'")
+
+features = pd.get_dummies(features, columns=categorical_cols, drop_first=True)
+
+scaler = StandardScaler()
+features[numerical_cols] = scaler.fit_transform(features[numerical_cols])
 
 
-if __name__ == "__main__":
-    os.makedirs("outputs", exist_ok=True)
 
-    df = load_data()
-
-    info = describe_dataset(df)
-    categorical_columns = info["categorical_columns"]
-    numerical_columns = info["numerical_columns"]
-
-    df_clean = clean_data(df, categorical_columns)
-
-    quartiles = outlier_statistics(df_clean, numerical_columns)
-    df_capped = cap_outliers(df_clean, numerical_columns, quartiles)
-
-    plot_boxplots(df_clean, numerical_columns)
-    print("Saved: outputs/plots/boxplot_*.png")
-
-    plot_correlation_heatmap(df_capped)
-    print("Saved: outputs/plots/correlation_heatmap.png")
-
-    df_capped.to_csv("outputs/processed_data.csv", index=False)
-    print("\nSaved: outputs/processed_data.csv")
-
-    df_encoded = encode_features(df_capped, categorical_columns)
-
-    encoded_numerical = [col for col in df_encoded.columns if col not in [TARGET_COLUMN]
-                         and df_encoded[col].dtype in ["float64", "int64"]
-                         and col in numerical_columns]
-    df_normalized = normalize_features(df_encoded, encoded_numerical)
-
-    df_normalized.to_csv("outputs/encoded_data.csv", index=False)
-    print("Saved: outputs/encoded_data.csv")
+# Save 
+final = pd.concat([features, target], axis=1)
+final.to_csv(OUTPUT_PATH, index=False)
+print(f"Saved final data to '{OUTPUT_PATH}'  ({final.shape[0]} rows, {final.shape[1]} cols)")
