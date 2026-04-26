@@ -13,10 +13,8 @@ TARGET_COLUMN = "target"
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-
 df = pd.read_csv(INPUT_PATH)
 print(f"Loaded {df.shape[0]} rows, {df.shape[1]} columns from '{INPUT_PATH}'")
-
 
 
 # Describe 
@@ -25,13 +23,9 @@ print(f"Shape: {df.shape}")
 print(f"\nMissing values:\n{df.isnull().sum()}")
 print(f"\nStatistics:\n{df.describe()}")
 
-
-
 # Column types 
 categorical_cols = [c for c in CATEGORICAL_COLUMNS if c in df.columns]
 numerical_cols = [c for c in df.columns if c not in categorical_cols + [TARGET_COLUMN]]
-
-
 
 # Clean 
 df = df.drop_duplicates().reset_index(drop=True)
@@ -49,8 +43,6 @@ df[TARGET_COLUMN] = df[TARGET_COLUMN].astype(int)
 print(f"Rows after dropping duplicates: {len(df)}")
 print(f"Remaining nulls: {df.isnull().sum().sum()}")
 
-
-
 # Cap outliers 
 for col in numerical_cols:
     q1, q3 = df[col].quantile([0.25, 0.75])
@@ -62,8 +54,6 @@ for col in numerical_cols:
         df[col] = df[col].clip(lower=lower, upper=upper)
         print(f"{col:<12}  capped {n_outliers} outlier(s)")
 
-
-
 # Boxplots 
 for col in numerical_cols:
     plt.figure(figsize=(6, 4))
@@ -74,8 +64,6 @@ for col in numerical_cols:
     plt.close()
 print(f"Saved boxplots to {PLOTS_DIR}/")
 
-
-
 # Correlation heatmap 
 plt.figure(figsize=(12, 8))
 sns.heatmap(df.corr(numeric_only=True), annot=True, cmap="coolwarm")
@@ -84,8 +72,6 @@ plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_DIR, "correlation_heatmap.png"), dpi=150)
 plt.close()
 print(f"Saved correlation heatmap to {PLOTS_DIR}/")
-
-
 
 # Encode & normalise 
 target = df[TARGET_COLUMN]
@@ -99,8 +85,6 @@ features = pd.get_dummies(features, columns=categorical_cols, drop_first=True)
 
 scaler = StandardScaler()
 features[numerical_cols] = scaler.fit_transform(features[numerical_cols])
-
-
 
 # Save 
 final = pd.concat([features, target], axis=1)

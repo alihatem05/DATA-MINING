@@ -5,7 +5,7 @@ import seaborn as sns
 from imblearn.over_sampling import SMOTE
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 
 os.makedirs("outputs/plots", exist_ok=True)
 
@@ -49,7 +49,13 @@ print(classification_report(Y_test, pred))
 
 accuracy = accuracy_score(Y_test, pred)
 error = (1 - accuracy) * 100
+precision = precision_score(Y_test, pred, average="macro", zero_division=0)
+recall    = recall_score(Y_test, pred, average="macro", zero_division=0)
+f1        = f1_score(Y_test, pred, average="macro", zero_division=0)
 print(f"Logistic Regression Error %: {error:.2f}%")
+print(f"Precision (macro)          : {precision * 100:.2f}%")
+print(f"Recall    (macro)          : {recall * 100:.2f}%")
+print(f"F1-Score  (macro)          : {f1 * 100:.2f}%")
 print("---------------------------------------------------")
 
 # Confusion Matrix

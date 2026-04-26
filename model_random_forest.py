@@ -4,10 +4,10 @@ import seaborn as sns
 
 from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, precision_score, recall_score, f1_score
 
 # Load dataset
-df = pd.read_csv("preprocessed data.csv")   # replace with your file name
+df = pd.read_csv("outputs/final_data.csv")
 
 # Features / Target
 X = df.drop("target", axis=1)
@@ -62,6 +62,14 @@ print("Test Accuracy:", round(acc * 100, 2), "%")
 print("\nClassification Report:\n")
 print(classification_report(y_test, y_pred))
 
+precision = precision_score(y_test, y_pred, average="macro", zero_division=0)
+recall    = recall_score(y_test, y_pred, average="macro", zero_division=0)
+f1        = f1_score(y_test, y_pred, average="macro", zero_division=0)
+print(f"Precision (macro) : {precision * 100:.2f}%")
+print(f"Recall    (macro) : {recall * 100:.2f}%")
+print(f"F1-Score  (macro) : {f1 * 100:.2f}%")
+print("---------------------------------------------------")
+
 # Confusion Matrix
 cm = confusion_matrix(y_test, y_pred)
 
@@ -80,3 +88,8 @@ plt.figure(figsize=(10,6))
 sns.barplot(x=importance.values, y=importance.index)
 plt.title("Feature Importance")
 plt.show()
+
+# Save predictions for comparison
+pd.DataFrame({"actual": y_test.values, "predicted": y_pred}).to_csv(
+    "outputs/pred_random_forest.csv", index=False
+)

@@ -2,7 +2,7 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score
 
 # Load dataset
 df = pd.read_csv("outputs/final_data.csv")
@@ -70,6 +70,21 @@ final_model.fit(X_train, y_train)
 y_final_pred = final_model.predict(X_test)
 
 cm = confusion_matrix(y_test, y_final_pred)
+
+print("\n--- Best Model (Final Evaluation) ---")
+print(classification_report(y_test, y_final_pred, target_names=["No Disease", "Disease"]))
+
+precision = precision_score(y_test, y_final_pred, average="macro", zero_division=0)
+recall    = recall_score(y_test, y_final_pred, average="macro", zero_division=0)
+f1        = f1_score(y_test, y_final_pred, average="macro", zero_division=0)
+accuracy  = accuracy_score(y_test, y_final_pred)
+error     = (1 - accuracy) * 100
+print(f"Accuracy          : {accuracy * 100:.2f}%")
+print(f"Error %           : {error:.2f}%")
+print(f"Precision (macro) : {precision * 100:.2f}%")
+print(f"Recall    (macro) : {recall * 100:.2f}%")
+print(f"F1-Score  (macro) : {f1 * 100:.2f}%")
+print("---------------------------------------------------")
 
 print("\nConfusion Matrix:")
 print(cm)
