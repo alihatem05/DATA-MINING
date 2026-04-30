@@ -4,7 +4,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 
 matplotlib.use("Agg")
 
@@ -73,11 +73,9 @@ plt.savefig(os.path.join(PLOTS_DIR, "correlation_heatmap.png"), dpi=150)
 plt.close()
 
 
-# Save cleaned data for analysis plots
+# Save cleaned data for analysis plots (before encoding)
 df.to_csv("outputs/processed_data.csv", index=False)
 
-
-# Encode and normalize
 target = df[TARGET_COLUMN]
 features = df.drop(columns=[TARGET_COLUMN])
 
@@ -86,13 +84,15 @@ for col in categorical_cols:
     dummies = pd.get_dummies(features[col], columns=[col], prefix=col, drop_first=drop_first).astype(int)
     features = pd.concat([features.drop(columns=[col]), dummies], axis=1)
 
-unscaled = pd.concat([features.copy(), target], axis=1)
-unscaled.to_csv("outputs/processed_data_unscaled.csv", index=False)
 
-features[numerical_cols] = StandardScaler().fit_transform(features[numerical_cols])
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+
+X_train.to_csv("outputs/X_train.csv", index=False)
+X_test.to_csv("outputs/X_test.csv", index=False)
+y_train.to_csv("outputs/y_train.csv", index=False)
+y_test.to_csv("outputs/y_test.csv", index=False)
 
 
-# Save final data
+# Save full encoded dataset (unscaled) for backward-compatible analysis
 final = pd.concat([features, target], axis=1)
-final.to_csv("outputs/processed_data_scaled.csv", index=False)
 final.to_csv(OUTPUT_PATH, index=False)

@@ -5,7 +5,7 @@ import pandas as pd
 import seaborn as sns
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score, confusion_matrix, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.naive_bayes import CategoricalNB
 from sklearn.pipeline import Pipeline
@@ -56,6 +56,19 @@ model = Pipeline(
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 model.fit(X_train, y_train)
 predicted = model.predict(X_test)
+
+accuracy = accuracy_score(y_test, predicted)
+precision = precision_score(y_test, predicted, average="macro", zero_division=0)
+recall = recall_score(y_test, predicted, average="macro", zero_division=0)
+f1 = f1_score(y_test, predicted, average="macro", zero_division=0)
+error = (1 - accuracy) * 100
+
+print("Naive Bayes:")
+print(f"  Accuracy : {accuracy:.4f}")
+print(f"  Precision: {precision:.4f}")
+print(f"  Recall   : {recall:.4f}")
+print(f"  F1-Score : {f1:.4f}")
+print(f"  Error %  : {error:.2f}%")
 
 cm = confusion_matrix(y_test, predicted)
 
