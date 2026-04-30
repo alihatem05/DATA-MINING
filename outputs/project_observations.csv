@@ -1,0 +1,8 @@
+section,group,heart_disease_rate
+young_age,age < 45,74.54545454545455
+gender,Female,75.0
+gender,Male,44.66019417475729
+age_group,<=40,66.66666666666666
+age_group,41-50,69.73684210526315
+age_group,51-60,49.6124031007752
+age_group,60+,44.303797468354425

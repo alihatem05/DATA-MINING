@@ -1,98 +1,37 @@
+import matplotlib.pyplot as plt
 import pandas as pd
-
+import seaborn as sns
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, precision_score, recall_score, f1_score
+from sklearn.pipeline import Pipeline
 
-# Load dataset
 df = pd.read_csv("outputs/final_data.csv")
-
-# Features & target
 X = df.drop("target", axis=1)
 y = df["target"]
 
-# Split
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = Pipeline(
+    [
+        ("feature_selection", SelectKBest(score_func=f_classif, k=11)),
+        ("classifier", KNeighborsClassifier(n_neighbors=11, weights="uniform", metric="manhattan")),
+    ]
 )
+model.fit(X_train, y_train)
+predicted = model.predict(X_test)
 
-print("KNN Full Comparison (Metric + Weights)\n")
+cm = confusion_matrix(y_test, predicted)
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+plt.title("KNN - Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.tight_layout()
+plt.savefig("outputs/plots/cm_knn.png", dpi=150)
+plt.close()
 
-results = []
-
-for metric in ["manhattan", "euclidean"]:
-    for weight in ["uniform", "distance"]:
-
-        print(f"\n===== Metric: {metric} | Weight: {weight} =====")
-
-        best_acc = 0
-        best_k = 0
-
-        for k in range(1, 12, 2):
-            knn = KNeighborsClassifier(
-                n_neighbors=k,
-                weights=weight,
-                metric=metric
-            )
-
-            knn.fit(X_train, y_train)
-            y_pred = knn.predict(X_test)
-
-            acc = accuracy_score(y_test, y_pred)
-            print(f"K = {k} -> Accuracy = {acc:.4f}")
-
-            if acc > best_acc:
-                best_acc = acc
-                best_k = k
-
-        print(f"Best K = {best_k}")
-        print(f"Best Accuracy = {best_acc:.4f}")
-
-        results.append((metric, weight, best_k, best_acc))
-
-best_overall = max(results, key=lambda x: x[3])
-
-print("\n==========================")
-print(f"Best Metric = {best_overall[0]}")
-print(f"Best Weight = {best_overall[1]}")
-print(f"Best K = {best_overall[2]}")
-print(f"Best Accuracy = {best_overall[3]:.4f}")
-
-best_metric, best_weight, best_k, _ = best_overall
-
-final_model = KNeighborsClassifier(
-    n_neighbors=best_k,
-    weights=best_weight,
-    metric=best_metric
-)
-
-final_model.fit(X_train, y_train)
-y_final_pred = final_model.predict(X_test)
-
-cm = confusion_matrix(y_test, y_final_pred)
-
-print("\n--- Best Model (Final Evaluation) ---")
-print(classification_report(y_test, y_final_pred, target_names=["No Disease", "Disease"]))
-
-precision = precision_score(y_test, y_final_pred, average="macro", zero_division=0)
-recall    = recall_score(y_test, y_final_pred, average="macro", zero_division=0)
-f1        = f1_score(y_test, y_final_pred, average="macro", zero_division=0)
-accuracy  = accuracy_score(y_test, y_final_pred)
-error     = (1 - accuracy) * 100
-print(f"Accuracy          : {accuracy * 100:.2f}%")
-print(f"Error %           : {error:.2f}%")
-print(f"Precision (macro) : {precision * 100:.2f}%")
-print(f"Recall    (macro) : {recall * 100:.2f}%")
-print(f"F1-Score  (macro) : {f1 * 100:.2f}%")
-print("---------------------------------------------------")
-
-print("\nConfusion Matrix:")
-print(cm)
-
-print("\nConfusion Matrix (labeled):")
-print("TN =", cm[0][0], "| FP =", cm[0][1])
-print("FN =", cm[1][0], "| TP =", cm[1][1])
-
-pd.DataFrame({"actual": y_test.values, "predicted": y_final_pred}).to_csv(
+pd.DataFrame({"actual": y_test.values, "predicted": predicted}).to_csv(
     "outputs/pred_knn.csv", index=False
 )

@@ -1,8 +1,12 @@
 import os
-import pandas as pd
+
+import matplotlib
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
+
+matplotlib.use("Agg")
 
 INPUT_PATH = "heart.csv"
 OUTPUT_PATH = "outputs/final_data.csv"
@@ -10,51 +14,47 @@ PLOTS_DIR = "outputs/plots"
 CATEGORICAL_COLUMNS = ["sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal"]
 TARGET_COLUMN = "target"
 
+os.makedirs("outputs", exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
+# Load data
 df = pd.read_csv(INPUT_PATH)
-print(f"Loaded {df.shape[0]} rows, {df.shape[1]} columns from '{INPUT_PATH}'")
 
 
-# Describe 
-print("\n=== Dataset Summary ===")
-print(f"Shape: {df.shape}")
-print(f"\nMissing values:\n{df.isnull().sum()}")
-print(f"\nStatistics:\n{df.describe()}")
-
-# Column types 
+# Column types
 categorical_cols = [c for c in CATEGORICAL_COLUMNS if c in df.columns]
 numerical_cols = [c for c in df.columns if c not in categorical_cols + [TARGET_COLUMN]]
 
-# Clean 
+
+# Clean data
 df = df.drop_duplicates().reset_index(drop=True)
-
-for col in numerical_cols:
-    if df[col].isnull().any():
-        df[col] = df[col].fillna(df[col].median())
-
-for col in categorical_cols:
-    if df[col].isnull().any():
-        df[col] = df[col].fillna(df[col].mode().iloc[0])
-
 df[TARGET_COLUMN] = df[TARGET_COLUMN].astype(int)
 
-print(f"Rows after dropping duplicates: {len(df)}")
-print(f"Remaining nulls: {df.isnull().sum().sum()}")
+for col in numerical_cols:
+    df[col] = df[col].fillna(df[col].median())
 
-# Cap outliers 
+for col in categorical_cols:
+    df[col] = df[col].fillna(df[col].mode().iloc[0])
+
+
+# Detect outliers
+outlier_rows = []
 for col in numerical_cols:
     q1, q3 = df[col].quantile([0.25, 0.75])
     iqr = q3 - q1
-    lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
-    n_outliers = int(((df[col] < lower) | (df[col] > upper)).sum())
+    lower = q1 - 1.5 * iqr
+    upper = q3 + 1.5 * iqr
+    count = ((df[col] < lower) | (df[col] > upper)).sum()
+    outlier_rows.append([col, q1, q3, iqr, lower, upper, count])
 
-    if n_outliers:
-        df[col] = df[col].clip(lower=lower, upper=upper)
-        print(f"{col:<12}  capped {n_outliers} outlier(s)")
+pd.DataFrame(
+    outlier_rows,
+    columns=["feature", "q1", "q3", "iqr", "lower_bound", "upper_bound", "outlier_count"],
+).to_csv("outputs/outlier_summary.csv", index=False)
 
-# Boxplots 
+
+# Boxplots
 for col in numerical_cols:
     plt.figure(figsize=(6, 4))
     sns.boxplot(x=df[col])
@@ -62,31 +62,37 @@ for col in numerical_cols:
     plt.tight_layout()
     plt.savefig(os.path.join(PLOTS_DIR, f"boxplot_{col}.png"), dpi=150)
     plt.close()
-print(f"Saved boxplots to {PLOTS_DIR}/")
 
-# Correlation heatmap 
+
+# Correlation heatmap
 plt.figure(figsize=(12, 8))
 sns.heatmap(df.corr(numeric_only=True), annot=True, cmap="coolwarm")
 plt.title("Correlation Heatmap")
 plt.tight_layout()
 plt.savefig(os.path.join(PLOTS_DIR, "correlation_heatmap.png"), dpi=150)
 plt.close()
-print(f"Saved correlation heatmap to {PLOTS_DIR}/")
 
-# Encode & normalise 
+
+# Save cleaned data for analysis plots
+df.to_csv("outputs/processed_data.csv", index=False)
+
+
+# Encode and normalize
 target = df[TARGET_COLUMN]
 features = df.drop(columns=[TARGET_COLUMN])
 
-# Save capped (non-normalized) data for analysis plots
-df.to_csv("outputs/processed_data.csv", index=False)
-print("Saved processed data to 'outputs/processed_data.csv'")
+for col in categorical_cols:
+    drop_first = features[col].nunique() == 2
+    dummies = pd.get_dummies(features[col], columns=[col], prefix=col, drop_first=drop_first).astype(int)
+    features = pd.concat([features.drop(columns=[col]), dummies], axis=1)
 
-features = pd.get_dummies(features, columns=categorical_cols, drop_first=True)
+unscaled = pd.concat([features.copy(), target], axis=1)
+unscaled.to_csv("outputs/processed_data_unscaled.csv", index=False)
 
-scaler = StandardScaler()
-features[numerical_cols] = scaler.fit_transform(features[numerical_cols])
+features[numerical_cols] = StandardScaler().fit_transform(features[numerical_cols])
 
-# Save 
+
+# Save final data
 final = pd.concat([features, target], axis=1)
+final.to_csv("outputs/processed_data_scaled.csv", index=False)
 final.to_csv(OUTPUT_PATH, index=False)
-print(f"Saved final data to '{OUTPUT_PATH}'  ({final.shape[0]} rows, {final.shape[1]} cols)")
