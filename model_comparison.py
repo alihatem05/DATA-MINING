@@ -53,7 +53,7 @@ for i, metric in enumerate(metrics):
 ax.set_xticks(x + width * 1.5)
 ax.set_xticklabels(df["Model"], rotation=15, ha="right")
 ax.set_ylabel("Score")
-ax.set_ylim(0, 1.1)
+ax.set_ylim(0.8, 1.0)
 ax.set_title("Model Comparison - Accuracy, Precision, Recall, F1-Score")
 ax.legend()
 plt.tight_layout()

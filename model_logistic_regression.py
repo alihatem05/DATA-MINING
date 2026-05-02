@@ -15,10 +15,12 @@ y_test = pd.read_csv("outputs/y_test.csv").squeeze()
 model = Pipeline(
     [
         ("scaler", StandardScaler()),
-        ("feature_selection", SelectKBest(score_func=f_classif, k=11)),
-        ("classifier", LogisticRegression(max_iter=1000, C=1, solver="lbfgs", random_state=42)),
+        ("feature_selection", SelectKBest(k=11)),
+        ("classifier", LogisticRegression(max_iter=1000)),
     ]
 )
+# from 11 to 15 no change in accuracy
+
 model.fit(X_train, y_train)
 predicted = model.predict(X_test)
 
